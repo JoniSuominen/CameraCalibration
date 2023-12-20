@@ -1,13 +1,14 @@
 from evaluate import pred
-from preprocessing import GAMOptimizer, TensorBSplineTransformer, DeltaEOptimizer, NLOptOptimizer
+from preprocessing import TensorBSplineTransformer, DeltaEOptimizer, NLOptOptimizer
 import numpy as np
 import colour
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 import matplotlib.pyplot as plt
 from utils import compute_response, deltae_mean, parse_reflectance_spectra, interleave_arrays
-from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import GridSearchCV
+from sklearn.linear_model import LinearRegression, Ridge
+from sklearn.experimental import enable_halving_search_cv # noqa
+from sklearn.model_selection import HalvingGridSearchCV
 from sklearn.metrics import make_scorer
 
 # Constants
@@ -47,10 +48,23 @@ def train_model(X_train, y_train):
     """
     Train the model with the given data.
     """
-    model = GAMOptimizer(lams=1e-2)
-    model.fit(X_train, y_train)
     
-    return model
+    custom_scorer = make_scorer(deltae_mean, greater_is_better=False)
+    
+    bspline_pipeline_lab = Pipeline([
+        ('spline_transformer', TensorBSplineTransformer(2,5)),
+        ('regressor', DeltaEOptimizer(l=0))
+    ])
+    
+    param_grid = {
+        'regressor__l': [1, 0,1e-8, 1e-9, 1e-10],  # Example values, adjust as needed
+    }
+    
+    #grid_search = HalvingGridSearchCV(bspline_pipeline_lab, param_grid, cv=5, verbose=1, n_jobs=-1, scoring=custom_scorer)
+    bspline_pipeline_lab.fit(X_train, y_train)
+
+    # print("Best parameters:", grid_search.best_params_)
+    return bspline_pipeline_lab
 
 def plot_results(model, response_sensor_macbeth, response_human_macbeth):
     """

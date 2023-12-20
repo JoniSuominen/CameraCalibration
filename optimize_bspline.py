@@ -5,28 +5,13 @@ from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.pipeline import Pipeline
 import matplotlib.pyplot as plt
 from sklearn.metrics import make_scorer
-from utils import compute_response, deltae_stats, parse_reflectance_spectra, deltae_mean, interleave_arrays
-import pandas as pd
+from utils import compute_response, parse_reflectance_spectra, deltae_mean, interleave_arrays
 # from patsy import dmatrix
 from pygam import LinearGAM, te
 from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet
 
 SFU_FILE_PATH = 'reflect_db.reflect'
 
-def evaluate(results, model):
-    print(f"---- RESULTS {model} ----")
-    print(f"DeltaE mean: {np.mean(results)}")
-    print(f"DeltaE max: {np.max(results)}")
-    print(f"DeltaE min: {np.min(results)}")
-    print(f"DeltaE median: {np.median(results)}")
-    print(f"DeltaE 95 percentile: {np.quantile(results, 0.95)}")
-    print(f"DeltaE 99 percentile: {np.quantile(results, 0.99)}")
-    
-def pred(model, X, y, identifier):
-    XYZ = model.predict(X)
-    print(XYZ.shape)
-    deltae = deltae_stats(XYZ, y)
-    evaluate(deltae, identifier)
     
 def compute_error_sfu():
     np.random.seed(42)
@@ -50,8 +35,8 @@ def compute_error_sfu():
         
     X_train, X_test, y_train, y_test = train_test_split(response_sensor_sfu, response_human_sfu, test_size=0.2, random_state=42)
     bspline_pipeline =  Pipeline([
-        ('spline_transformer', TensorBSplineTransformer()),
-        ('regressor', DeltaEOptimizer())
+        ('spline_transformer', TensorBSplineTransformer(2, 3)),
+        ('regressor', Ridge())
     ])
     
     start_exponent = -1  # For 1e-01
@@ -62,9 +47,9 @@ def compute_error_sfu():
     
     # Define the parameter grid to search
     param_grid = {
-        'spline_transformer__degree': [2,5,7],
+        'spline_transformer__degree': [2,4, 5,7],
         'spline_transformer__n_knots': [3, 6, 8,],
-        # 'regressor__alpha': values  # Regularization strength
+        'regressor__alpha': values  # Regularization strength
         # Add more parameters here if you want
     }
     
@@ -92,8 +77,8 @@ def compute_error_sfu():
     print("Best parameters: ", grid_search.best_params_)
 
     # Evaluate the model on the test set
-    test_score = grid_search.score(X_test, y_test)
-    print("Test set score: ", test_score)
+    #test_score = grid_search.score(X_test, y_test)
+    #print("Test set score: ", test_score)
 
     
 

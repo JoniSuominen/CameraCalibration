@@ -60,6 +60,29 @@ def parse_reflectance_spectra(file_path):
 
 def callback_function(current_solution):
     print("Current solution:", current_solution)
+def diff_matrix(n, d):
+    # Create an identity matrix of size n
+    identity_matrix = np.eye(n)
+    # Compute the d-th order difference of the identity matrix
+    D = np.diff(identity_matrix, n=d, axis=0)
+    return D
+
+
+def deltae_stats_smooth(coef, a, b, c, lambda_l1=0.005):
+    ccm = coef.reshape(c)
+    result = ccm @ a.T
+    deltae = delta_E(XYZ_to_Lab(result.T), XYZ_to_Lab(b))
+    R_coef = ccm[0, :]
+    B_coef = ccm[1, :]
+    G_coef = ccm[2, :]
+    D = diff_matrix(len(R_coef), 2)
+    penalty_R = R_coef.T @ D.T @ D @R_coef
+    penalty_G = G_coef.T @ D.T @ D @G_coef
+    penalty_B = B_coef.T @ D.T @ D @B_coef    
+    penalty = lambda_l1 * (penalty_R + penalty_G + penalty_B)
+    error = np.mean(deltae)  + penalty
+    print(error, " : ", penalty)
+    return error
 
 def deltae_stats_nm(coef, a, b, c, lambda_l1=0.005):
     ccm = coef.reshape(c)
@@ -68,7 +91,9 @@ def deltae_stats_nm(coef, a, b, c, lambda_l1=0.005):
     
     #penalty = 0.00005 * np.sum(np.abs(np.diff(coef, n=2, axis=0)))
     l1_penalty = lambda_l1 * np.sum(coef**2)
-    return np.mean(deltae) + l1_penalty
+    error = np.mean(deltae) + l1_penalty
+    print(error)
+    return error
 
 def deltae_stats(a,b):
     sensor_lab = XYZ_to_Lab(a)
