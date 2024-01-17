@@ -1,3 +1,15 @@
+# ---
+# jupyter:
+#   jupytext:
+#     cell_metadata_filter: -all
+#     formats: ipynb,py
+#     text_representation:
+#       extension: .py
+#       format_name: light
+#       format_version: '1.5'
+#       jupytext_version: 1.16.1
+# ---
+
 from ast import Del
 from evaluate import pred
 from preprocessing import ColourOptimizer, DeltaEOptimizer, NLOptOptimizer, PolynomialTransformer, GAMOptimizer
@@ -15,6 +27,7 @@ from skopt import BayesSearchCV
 from skopt.space import Real, Integer
 np.int = np.int64
 import pandas as pd
+from sklearn.inspection import partial_dependence, PartialDependenceDisplay
 
 # Constants
 SFU_FILE_PATH = 'reflect_db.reflect'
@@ -31,7 +44,7 @@ def load_spectral_data(csv_file_path):
     """
     df = pd.read_csv(csv_file_path)
     spectral_data = df.iloc[:, 1:].to_numpy()
-    return spectral_data
+    return spectral_data.T
 
 
 def load_data():
@@ -41,11 +54,11 @@ def load_data():
     cmfs = colour.colorimetry.MSDS_CMFS_STANDARD_OBSERVER['CIE 1931 2 Degree Standard Observer'].align(CMF_RANGE)
     ss = colour.MSDS_CAMERA_SENSITIVITIES[CAMERA].align(CMF_RANGE)
     
-    test_set = load_spectral_data("combined_sfu.csv")
-    train_set = load_spectral_data("foster_new.csv")
-    train_data = colour.MultiSpectralDistributions(train_set.T, CMF_RANGE)
-    test_data = colour.MultiSpectralDistributions(test_set.T, CMF_RANGE)
-    macbeth = colour.MultiSpectralDistributions(colour.SDS_COLOURCHECKERS['babel_average']).align(CMF_RANGE)
+    train_set, _ = parse_reflectance_spectra(SFU_FILE_PATH)
+    test_set = load_spectral_data("foster_new.csv")
+    test_data = colour.MultiSpectralDistributions(test_set, CMF_RANGE)
+    train_data = colour.MultiSpectralDistributions(train_set).align(CMF_RANGE)
+    macbeth = colour.MultiSpectralDistributions(colour.SDS_COLOURCHECKERS['babel_average'])
     D65 = colour.SDS_ILLUMINANTS[ILLUMINANT].align(CMF_RANGE)
 
     return cmfs, ss, train_data, test_data, D65
@@ -60,6 +73,7 @@ def compute_and_split_responses(cmfs, ss, train, test, D65):
     response_trainset_xyz = colour.characterisation.training_data_sds_to_XYZ(train, cmfs, D65, None)
     response_testset_sensor, _ = colour.characterisation.training_data_sds_to_RGB(test, ss, norm_d65)
     response_trainset_sensor, _  = colour.characterisation.training_data_sds_to_RGB(train, ss, norm_d65)
+
     
     x_train, x_test, y_train, y_test = train_test_split(response_trainset_sensor, response_trainset_xyz, test_size=TEST_SIZE, random_state=RANDOM_STATE)
     return (x_train, x_test, y_train, y_test), response_testset_sensor, response_testset_xyz
@@ -70,17 +84,10 @@ def train_model(X_train, y_train):
     """
     
     custom_scorer = make_scorer(deltae_mean, greater_is_better=False)
-    model = GAMOptimizer(lams=0.0001, order=3, n_splines=10)
-    # model = GAMOptimizer(lams=3.1622776601683795e-10, order=1, n_splines=5)
-    # model.fit(X_train, y_train)
-    #coefs = np.concatenate((model.predictor_X.coef_, model.predictor_Y.coef_, model.predictor_Z.coef_))
-    RP_linear = Pipeline([
-        ('regressor', DeltaEOptimizer())
-    ])
+    model = GAMOptimizer(lams=0.0001, order=3, n_splines=20)
     
     RP_linear = Pipeline([
-        ('transformer', PolynomialTransformer(degree=3, rp=True)),
-        ('regressor', LinearRegression())
+        ('regressor', DeltaEOptimizer())
     ])
     
     
@@ -107,11 +114,20 @@ def train_model(X_train, y_train):
     )
 
 
-    bayes_search.fit(X_train, y_train)
+    model.fit(X_train, y_train)
+    #features = [0, 1, 2, (0, 1), (0, 2), (1, 2)]
+    #feature_range = np.linspace(0, 1, 50)
+    #xx0, xx1, xx2 = np.meshgrid(feature_range, feature_range, feature_range, indexing='ij')
 
-    print("Best parameters:", bayes_search.best_params_)
-    # pygam_pipeline.plot_partial_dependences()
-    return bayes_search
+    # Now, flatten the grid to feed into the regressor
+    #grid = np.vstack([xx0.ravel(), xx1.ravel(), xx2.ravel()]).T
+    
+    #PartialDependenceDisplay.from_estimator(RP_linear, grid, features, target=0)
+    #plt.show(block=True)
+    
+    # print("Best parameters:", bayes_search.best_params_)
+    model.plot_partial_dependences()
+    return model
 
 def plot_results(model, response_sensor_macbeth, response_human_macbeth):
     """

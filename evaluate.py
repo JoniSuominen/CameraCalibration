@@ -1,5 +1,7 @@
 import numpy as np
-from utils import deltae_stats
+from colour_math import deltae_stats
+
+
 def evaluate(results, model):
     print(f"---- RESULTS {model} ----")
     print(f"DeltaE mean: {np.mean(results)}")
