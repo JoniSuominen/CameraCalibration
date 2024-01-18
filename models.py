@@ -166,6 +166,7 @@ class GAMOptimizer(BaseEstimator, RegressorMixin):
             ax2.set_title(f"Partial dependence of term {x+y} on Y")
             ax3.set_title(f"Partial dependence of term {x+y} on Z")
             fig.tight_layout(pad=1.0)
+            plt.title("")
         
 
         

@@ -73,3 +73,12 @@ def load_illuminant_cmfs():
     illuminant = SDS_ILLUMINANTS[ILLUMINANT].align(CMF_RANGE)
     return illuminant, cmfs
     
+def load_camera(camera):
+    if camera == 'nikon':
+        return load_msds_nikon()
+    elif camera == 'canon':
+        return load_msds_canon()
+    elif camera== 'sigma':
+        return load_msds_sigma()
+    else:
+        print("Invalid camera option, valid options are: nikon, canon, sigma")
