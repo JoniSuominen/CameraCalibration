@@ -1,1 +1,6 @@
 *.csv
+__pycache__/colour_math.cpython-311.pyc
+__pycache__/data.cpython-311.pyc
+__pycache__/evaluate.cpython-311.pyc
+__pycache__/models.cpython-311.pyc
+__pycache__/plotting.cpython-311.pyc

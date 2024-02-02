@@ -52,24 +52,24 @@ def load_dataset_sfu(file_path):
 
 
 def load_msds_nikon():
-    ssf = MSDS_CAMERA_SENSITIVITIES[NIKON].align(CMF_RANGE)
+    ssf = MSDS_CAMERA_SENSITIVITIES[NIKON].copy().align(CMF_RANGE)
     illuminant = SDS_ILLUMINANTS[ILLUMINANT].align(CMF_RANGE)
     return ssf, normalise_illuminant(illuminant, ssf)
 
 def load_msds_sigma():
-    ssf = MSDS_CAMERA_SENSITIVITIES[SIGMA].align(CMF_RANGE)
+    ssf = MSDS_CAMERA_SENSITIVITIES[SIGMA].copy().align(CMF_RANGE)
     illuminant = SDS_ILLUMINANTS[ILLUMINANT].align(CMF_RANGE)
     return ssf, normalise_illuminant(illuminant, ssf)
     
 def load_msds_canon():
     ssf = sds_and_msds_to_msds(
         read_sds_from_csv_file(CANON_PATH).values()
-    ).align(CMF_RANGE).normalise()
+    ).copy().align(CMF_RANGE).normalise()
     illuminant = SDS_ILLUMINANTS[ILLUMINANT].align(CMF_RANGE)
     return ssf, normalise_illuminant(illuminant, ssf)
     
 def load_illuminant_cmfs():
-    cmfs = MSDS_CMFS_STANDARD_OBSERVER['CIE 1931 2 Degree Standard Observer'].align(CMF_RANGE)
+    cmfs = MSDS_CMFS_STANDARD_OBSERVER['CIE 1931 2 Degree Standard Observer'].copy().align(CMF_RANGE)
     illuminant = SDS_ILLUMINANTS[ILLUMINANT].align(CMF_RANGE)
     return illuminant, cmfs
     

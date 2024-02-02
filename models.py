@@ -91,6 +91,7 @@ class DeltaEOptimizer(BaseEstimator, RegressorMixin):
         return self
         
     def predict(self, X):
+        print(self.ccm)
         return apply_matrix_colour_correction(
             X,
             self.ccm,
@@ -156,6 +157,13 @@ class GAMOptimizer(BaseEstimator, RegressorMixin):
             ax1.plot_surface(XX[0], XX[1], X, cmap='viridis')
             ax2.plot_surface(XX[0], XX[1], Y, cmap='viridis')
             ax3.plot_surface(XX[0], XX[1], Z, cmap='viridis')
+            XX2  = self.predictor_Y.generate_X_grid(term=i, meshgrid=True, n=self.n_splines)
+            X2 = self.predictor_X.partial_dependence(term=i, X=XX2, meshgrid=True)
+            Y2 = self.predictor_Y.partial_dependence(term=i, X=XX2, meshgrid=True)
+            Z2 = self.predictor_Z.partial_dependence(term=i, X=XX2, meshgrid=True)
+            ax1.scatter(XX2[0], XX2[1], X2,color='red', s=5)
+            ax2.scatter(XX2[0], XX2[1], Y2,color='red', s=5)
+            ax3.scatter(XX2[0], XX2[1], Z2,color='red', s=5)
             ax1.set_xlabel(x)
             ax1.set_ylabel(y)
             ax2.set_xlabel(x)
@@ -165,9 +173,7 @@ class GAMOptimizer(BaseEstimator, RegressorMixin):
             ax1.set_title(f"Partial dependence of term {x+y} on X")
             ax2.set_title(f"Partial dependence of term {x+y} on Y")
             ax3.set_title(f"Partial dependence of term {x+y} on Z")
-            fig.tight_layout(pad=1.0)
-            plt.title("")
-        
+            fig.tight_layout(pad=1.0)        
 
         
     def predict(self, X):
