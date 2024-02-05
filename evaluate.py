@@ -14,5 +14,7 @@ def evaluate(results, model):
 
 def pred(model, X, y, identifier):
     XYZ = model.predict(X)
-    deltae = deltae_stats(XYZ, y)
+    XYZ2 = XYZ / np.max(y)
+    Y2 = y / np.max(y)
+    deltae = deltae_stats(XYZ2, Y2)
     evaluate(deltae, identifier)

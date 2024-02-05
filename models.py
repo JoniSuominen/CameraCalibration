@@ -5,8 +5,10 @@ from sklearn.preprocessing import SplineTransformer
 import numpy as np
 from scipy.optimize import minimize
 from colour_math import deltae_stats_nm
-from pygam import LinearGAM, te
+from pygam import LinearGAM, te, GammaGAM
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+from matplotlib import cm
 
 
 class PolynomialTransformer(BaseEstimator, TransformerMixin):
@@ -170,15 +172,81 @@ class GAMOptimizer(BaseEstimator, RegressorMixin):
             ax2.set_ylabel(y)
             ax3.set_xlabel(x)
             ax3.set_ylabel(y)
+            ax3.set_ylabel(y)
             ax1.set_title(f"Partial dependence of term {x+y} on X")
             ax2.set_title(f"Partial dependence of term {x+y} on Y")
             ax3.set_title(f"Partial dependence of term {x+y} on Z")
             fig.tight_layout(pad=1.0)        
+            
+    def plot_partial_dependences_for_Y(self):
+        n_features = self.predictor_X.statistics_['m_features']
+        terms = {
+            0: ['R', 'G'],
+            1: ['R', 'B'],
+            2: ['G', 'B']
+        }
+        fig = plt.figure()
+        gs = gridspec.GridSpec(2, 2)
+        # Create subplots
+        ax1 = fig.add_subplot(gs[0,0], projection='3d')
+        ax2 = fig.add_subplot(gs[0,1], projection='3d')
+        ax3 = fig.add_subplot(gs[1, :], projection='3d')
+        XX = self.predictor_Y.generate_X_grid(term=0, meshgrid=True)
+        Ysurf1 = self.predictor_Y.partial_dependence(term=0, X=XX, meshgrid=True)
+        Ysurf2 = self.predictor_Y.partial_dependence(term=1, X=XX, meshgrid=True)
+        Ysurf3 = self.predictor_Y.partial_dependence(term=2, X=XX, meshgrid=True)
+        ax1.plot_surface(XX[0], XX[1], Ysurf1, cmap='viridis')
+        ax2.plot_surface(XX[0], XX[1], Ysurf2, cmap='viridis')
+        ax3.plot_surface(XX[0], XX[1], Ysurf3, cmap='viridis')
+        XX2  = self.predictor_Y.generate_X_grid(term=0, meshgrid=True, n=self.n_splines)
+        X2 = self.predictor_Y.partial_dependence(term=0, X=XX2, meshgrid=True)
+        Y2 = self.predictor_Y.partial_dependence(term=1, X=XX2, meshgrid=True)
+        Z2 = self.predictor_Y.partial_dependence(term=2, X=XX2, meshgrid=True)
+        ax1.scatter(XX2[0], XX2[1], X2,color='red', s=5)
+        ax2.scatter(XX2[0], XX2[1], Y2,color='red', s=5)
+        ax3.scatter(XX2[0], XX2[1], Z2,color='red', s=5)
+        ax1.set_xlabel("R")
+        ax1.set_ylabel("G")
+        ax2.set_xlabel("R")
+        ax2.set_ylabel("B")
+        ax3.set_xlabel("G")
+        ax3.set_ylabel("B")
+        ax1.set_zlabel("Y")
+        ax2.set_zlabel("Y")
+        ax3.set_zlabel("Y")
+        #ax1.view_init(azim=-130)
+        #ax2.view_init(azim=-130)
+        #ax3.view_init(azim=-130)
+        ax1.set_title(f"Partial dependence of term R/G on Y")
+        ax2.set_title(f"Partial dependence of term R/B on Y")
+        ax3.set_title(f"Partial dependence of term G/B on Y")
+        fig.tight_layout(pad=2.0)    
+        
+    def plot_4d(self):
+        n_samples = 100
+
+        # Generate artificial 3D training samples
+        samples = np.random.uniform(low=0, high=1, size=(n_samples, 3))
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.view_init(45,60)
+        
+        print(np.ones((n_samples, n_samples)).shape)
+
+
+        V = self.predictor_Y.predict(samples)
+        scatter = ax.scatter(samples[:, 0], samples[:, 1], samples[:, 2], c=V, cmap='Oranges')
+        print(np.max(V))
+        print(np.min(V))
+        fig.colorbar(scatter, ax=ax, label='Fourth Dimension')
+
+
 
         
     def predict(self, X):
-        Xp = self.predictor_X.predict(X)
-        Yp = self.predictor_Y.predict(X)
-        Zp = self.predictor_Z.predict(X)
+        Xp = np.clip(self.predictor_X.predict(X), 0, 1)
+        Yp = np.clip(self.predictor_Y.predict(X), 0, 1)
+        Zp = np.clip(self.predictor_Z.predict(X), 0, 1)
+        
         return np.vstack((Xp,Yp,Zp)).T
         

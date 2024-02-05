@@ -1,4 +1,5 @@
 *.csv
+*.png
 __pycache__/colour_math.cpython-311.pyc
 __pycache__/data.cpython-311.pyc
 __pycache__/evaluate.cpython-311.pyc
