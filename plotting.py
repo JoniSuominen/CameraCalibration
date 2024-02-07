@@ -11,7 +11,7 @@ def interleave_arrays(array1, array2):
 
 def plot_chromaticity_diagram(responses_xyz):
     responses_xy = XYZ_to_xy(responses_xyz)
-    plot_chromaticity_diagram_CIE1931(standalone=False)    
+    plot_chromaticity_diagram_CIE1931(show=False, transparent=False, transparent_background=False)    
 
     
 
@@ -19,6 +19,6 @@ def plot_chromaticity_diagram(responses_xyz):
         
     plt.plot([0.64,0.3, 0.15, 0.64],
         [0.33,0.6, 0.06, 0.33],
-        color='black', linewidth=2)
+        color='white', linewidth=2)
     
     plt.show(block=True)
