@@ -88,12 +88,13 @@ class DeltaEOptimizer(BaseEstimator, RegressorMixin):
         feature = polynomial_expansion_Finlayson2015(X[0, :], self.degree, self.root_polynomial)
         n_terms = feature.shape[0]
         self.coefs = np.ones((3 *  n_terms))
-        result = minimize(deltae_stats_nm, self.coefs, method=self.solver, args=(X, XYZ_to_Lab(y), self.degree, self.root_polynomial, n_terms), options={'maxiter': 2000000, 'adaptive': True})
+        result = minimize(deltae_stats_nm, self.coefs, method=self.solver, args=(X, XYZ_to_Lab(y), self.degree, self.root_polynomial, n_terms))
+
+        print(result)
         self.ccm = result.x.reshape((3, n_terms))
         return self
         
     def predict(self, X):
-        print(self.ccm)
         return apply_matrix_colour_correction(
             X,
             self.ccm,
@@ -121,6 +122,7 @@ class GAMOptimizer(BaseEstimator, RegressorMixin):
         term_rb = te(0,2, spline_order=self.order, n_splines=self.n_splines, penalties=self.penalties, edge_knots=[[0, 1], [0, 1]])
         term_gb = te(1,2, spline_order=self.order, n_splines=self.n_splines, penalties=self.penalties, edge_knots=[[0, 1], [0, 1]])
         interactions = term_rg + term_rb + term_gb
+
         self.predictor_X = LinearGAM(terms=interactions, lam=self.lams, fit_intercept=False)
         self.predictor_Y = LinearGAM(terms=interactions, lam=self.lams, fit_intercept=False)
         self.predictor_Z = LinearGAM(terms=interactions, lam=self.lams, fit_intercept=False)
@@ -131,6 +133,9 @@ class GAMOptimizer(BaseEstimator, RegressorMixin):
         self.predictor_X.fit(X, y[:, 0])
         self.predictor_Y.fit(X, y[:, 1])
         self.predictor_Z.fit(X, y[:, 2])
+
+        print(3* self.predictor_X.coef_.shape[0])
+
 
         return self
     
@@ -244,9 +249,9 @@ class GAMOptimizer(BaseEstimator, RegressorMixin):
 
         
     def predict(self, X):
-        Xp = np.clip(self.predictor_X.predict(X), 0, 1)
-        Yp = np.clip(self.predictor_Y.predict(X), 0, 1)
-        Zp = np.clip(self.predictor_Z.predict(X), 0, 1)
+        Xp = self.predictor_X.predict(X)
+        Yp = self.predictor_Y.predict(X)
+        Zp = self.predictor_Z.predict(X)
         
         return np.vstack((Xp,Yp,Zp)).T
         
