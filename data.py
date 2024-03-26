@@ -27,18 +27,18 @@ def load_insitu(csv_file_path):
 
 def msds_to_xyz(reflectances, sensitivities, illuminant):
     response = (sensitivities.values.T @ (np.diag(illuminant.values) @ reflectances.values)).T
-    max_response = compute_response_perfect_reflector(sensitivities)
+    max_response = compute_response_perfect_reflector(sensitivities, illuminant)
     print(max_response / max_response[1])
     return response / max_response[1]
 
 def msds_to_rgb(reflectances, sensitivities, illuminant):
     response = (sensitivities.values.T @ (np.diag(illuminant.values) @ reflectances.values)).T
-    max_response = compute_response_perfect_reflector(sensitivities)
+    max_response = compute_response_perfect_reflector(sensitivities, illuminant)
+    print(max_response)
     return response / max_response  
 
 
-def compute_response_perfect_reflector(sensitivities):
-    illuminant = SDS_ILLUMINANTS["D65"].align(INTERP_CMF_RANGE)
+def compute_response_perfect_reflector(sensitivities, illuminant):
     response_test = (sensitivities.values.T @ np.diag(illuminant.values)).T
     response_sum = np.sum(response_test, axis=0)
     
