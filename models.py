@@ -5,11 +5,63 @@ from sklearn.preprocessing import SplineTransformer
 import numpy as np
 from scipy.optimize import minimize
 from colour_math import deltae_stats_nm
-from pygam import LinearGAM, te, GammaGAM
+from pygam import LinearGAM, te
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from matplotlib import cm
+import torch
+from torch import nn
+from torch.optim import Adam
+from torch.utils.data import DataLoader, TensorDataset
 
+class RGBtoXYZNetwork(BaseEstimator, RegressorMixin):
+    def __init__(self, input_dim=3, hidden_layers=[79, 36], output_dim=3, learning_rate=1e-5):
+        super().__init__()
+        self.input_dim = input_dim
+        self.hidden_layers = hidden_layers
+        self.output_dim = output_dim
+        self.learning_rate = learning_rate
+        self.model = self._build_model()
+        self.loss_fn = nn.MSELoss()  # Replace with your custom loss function, e.g., delta E 2000 for colors
+        self.optimizer = Adam(self.model.parameters(), lr=self.learning_rate)
+
+    def _build_model(self):
+        modules = []
+        in_features = self.input_dim
+        for hidden_layer in self.hidden_layers:
+            modules.append(nn.Linear(in_features, hidden_layer))
+            modules.append(nn.ReLU())
+            in_features = hidden_layer
+        modules.append(nn.Linear(in_features, self.output_dim))
+        modules.append(nn.ReLU())
+        # No activation after the final layer, assuming a regression problem
+        return nn.Sequential(*modules)
+
+    def fit(self, X, y, validation_split=0.1, epochs=65, batch_size=32):
+        dataset = TensorDataset(torch.tensor(X, dtype=torch.float32), torch.tensor(y, dtype=torch.float32))
+        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+        self.model.train()
+        for epoch in range(epochs):
+            for batch, (X_batch, y_batch) in enumerate(dataloader):
+                self.optimizer.zero_grad()
+                y_pred = self.model(X_batch)
+                loss = self.loss_fn(y_pred, y_batch)
+                loss.backward()
+                self.optimizer.step()
+            print(f"Epoch {epoch+1}, Loss: {loss.item()}")
+        return self
+
+    def predict(self, X):
+        self.model.eval()
+        with torch.no_grad():
+            predictions = self.model(torch.tensor(X, dtype=torch.float32))
+        return predictions.numpy()
+
+    def score(self, X, y):
+        self.model.eval()
+        with torch.no_grad():
+            y_pred = self.model(torch.tensor(X, dtype=torch.float32))
+            loss = self.loss_fn(y_pred, torch.tensor(y, dtype=torch.float32))
+        return -loss.item()  # Negate the loss to follow sklearn's convention
 
 class PolynomialTransformer(BaseEstimator, TransformerMixin):
     def __init__(self, degree=2, rp=True, method="Finlayson 2015"):
