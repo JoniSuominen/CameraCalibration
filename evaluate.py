@@ -15,3 +15,11 @@ def pred(model, X, y, identifier):
     XYZ = model.predict(X)
     deltae = deltae_stats(XYZ, y)
     evaluate(deltae, identifier)
+
+def pred_ei(model, X, y, identifier, k):
+    XYZ = model.predict(X)
+    XYZ[XYZ < 0] = 0
+    deltae = deltae_stats(XYZ /k, y/k)
+    evaluate(deltae, identifier)
+
+    return XYZ

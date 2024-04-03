@@ -159,8 +159,7 @@ def deltae_stats_nm(coef, X, y, degree, RP, n_terms):
 def deltae_stats(a,b):
     sensor_lab = XYZ_to_Lab(a)
     human_lab = XYZ_to_Lab(b)
-    
-    deltae = delta_E(sensor_lab, human_lab)
+    deltae = delta_E(sensor_lab, human_lab,  method="CIE 2000")
     return deltae 
 
 def deltae_mean(a,b):

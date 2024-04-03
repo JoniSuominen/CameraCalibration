@@ -11,7 +11,7 @@ SIGMA = 'Sigma SDMerill (NPL)'
 CANON_PATH = "CANON.csv"
 ILLUMINANT = "D65"
 CMF_RANGE = SpectralShape(400, 700, 10)
-INTERP_CMF_RANGE = SpectralShape(400,700,10)
+INTERP_CMF_RANGE = SpectralShape(400,700,1)
 
 def load_insitu(csv_file_path):
     """
@@ -28,13 +28,11 @@ def load_insitu(csv_file_path):
 def msds_to_xyz(reflectances, sensitivities, illuminant):
     response = (sensitivities.values.T @ (np.diag(illuminant.values) @ reflectances.values)).T
     max_response = compute_response_perfect_reflector(sensitivities, illuminant)
-    print(max_response / max_response[1])
     return response / max_response[1]
 
 def msds_to_rgb(reflectances, sensitivities, illuminant):
     response = (sensitivities.values.T @ (np.diag(illuminant.values) @ reflectances.values)).T
     max_response = compute_response_perfect_reflector(sensitivities, illuminant)
-    print(max_response)
     return response / max_response  
 
 

@@ -11,19 +11,24 @@ import matplotlib.gridspec as gridspec
 import torch
 from torch import nn
 from torch.optim import Adam
-from torch.utils.data import DataLoader, TensorDataset
-
+from torch.utils.data import DataLoader, TensorDataset, random_split
+from differential_color_functions import ciede2000_diff
 class RGBtoXYZNetwork(BaseEstimator, RegressorMixin):
-    def __init__(self, input_dim=3, hidden_layers=[79, 36], output_dim=3, learning_rate=1e-5):
+    def __init__(self, input_dim=3, hidden_layers=[79, 36], output_dim=3, learning_rate=1e-3):
         super().__init__()
+        # Set the seed for reproducibility
+        torch.manual_seed(0)
+        np.random.seed(0)
+
         self.input_dim = input_dim
         self.hidden_layers = hidden_layers
         self.output_dim = output_dim
         self.learning_rate = learning_rate
         self.model = self._build_model()
-        self.loss_fn = nn.MSELoss()  # Replace with your custom loss function, e.g., delta E 2000 for colors
+        self.loss_fn = ciede2000_diff  # Replace with your custom loss function, e.g., delta E 2000 for colors
         self.optimizer = Adam(self.model.parameters(), lr=self.learning_rate)
 
+    # Your existing _build_model method here
     def _build_model(self):
         modules = []
         in_features = self.input_dim
@@ -36,18 +41,34 @@ class RGBtoXYZNetwork(BaseEstimator, RegressorMixin):
         # No activation after the final layer, assuming a regression problem
         return nn.Sequential(*modules)
 
-    def fit(self, X, y, validation_split=0.1, epochs=65, batch_size=32):
+    def fit(self, X, y, validation_split=0.1, epochs=1000, batch_size=64):
         dataset = TensorDataset(torch.tensor(X, dtype=torch.float32), torch.tensor(y, dtype=torch.float32))
-        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+        val_size = int(len(dataset) * validation_split)
+        train_size = len(dataset) - val_size
+        train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        val_loader = DataLoader(val_dataset, batch_size=batch_size)
+
         self.model.train()
         for epoch in range(epochs):
-            for batch, (X_batch, y_batch) in enumerate(dataloader):
+            train_loss = 0.0
+            for X_batch, y_batch in train_loader:
                 self.optimizer.zero_grad()
                 y_pred = self.model(X_batch)
                 loss = self.loss_fn(y_pred, y_batch)
                 loss.backward()
                 self.optimizer.step()
-            print(f"Epoch {epoch+1}, Loss: {loss.item()}")
+                train_loss += loss.item()
+
+            # Validation loop
+            val_loss = 0.0
+            with torch.no_grad():
+                for X_val, y_val in val_loader:
+                    y_pred_val = self.model(X_val)
+                    val_loss += self.loss_fn(y_pred_val, y_val).item()
+
+            print(f"Epoch {epoch+1}, Train Loss: {train_loss / len(train_loader)}, Validation Loss: {val_loss / len(val_loader)}")
         return self
 
     def predict(self, X):
@@ -141,8 +162,6 @@ class DeltaEOptimizer(BaseEstimator, RegressorMixin):
         n_terms = feature.shape[0]
         self.coefs = np.ones((3 *  n_terms))
         result = minimize(deltae_stats_nm, self.coefs, method=self.solver, args=(X, XYZ_to_Lab(y), self.degree, self.root_polynomial, n_terms))
-
-        print(result)
         self.ccm = result.x.reshape((3, n_terms))
         return self
         
@@ -185,9 +204,6 @@ class GAMOptimizer(BaseEstimator, RegressorMixin):
         self.predictor_X.fit(X, y[:, 0])
         self.predictor_Y.fit(X, y[:, 1])
         self.predictor_Z.fit(X, y[:, 2])
-
-        print(3* self.predictor_X.coef_.shape[0])
-
 
         return self
     
@@ -288,13 +304,9 @@ class GAMOptimizer(BaseEstimator, RegressorMixin):
         ax = fig.add_subplot(111, projection='3d')
         ax.view_init(45,60)
         
-        print(np.ones((n_samples, n_samples)).shape)
-
 
         V = self.predictor_Y.predict(samples)
         scatter = ax.scatter(samples[:, 0], samples[:, 1], samples[:, 2], c=V, cmap='Oranges')
-        print(np.max(V))
-        print(np.min(V))
         fig.colorbar(scatter, ax=ax, label='Fourth Dimension')
 
 
@@ -304,6 +316,10 @@ class GAMOptimizer(BaseEstimator, RegressorMixin):
         Xp = self.predictor_X.predict(X)
         Yp = self.predictor_Y.predict(X)
         Zp = self.predictor_Z.predict(X)
-        
-        return np.vstack((Xp,Yp,Zp)).T
+
+        XYZ = np.vstack((Xp,Yp,Zp)).T
+
+        # print(np.max(XYZ))
+        # XYZ = np.clip(XYZ, [0, 0, 0], [0.9504, 1.0000, 1.0888])
+        return XYZ
         
